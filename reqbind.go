@@ -142,21 +142,58 @@ func checkMetadata(v interface{}) error {
 			value.SetString(strings.TrimSpace(strings.ToLower(value.String())))
 		}
 
-		// if the field has a validate, validate
+		// if the field has a validate, get the validation type (email, phone) and validate
 		if f.Tag.Get("validate") != "" {
+			vType := f.Tag.Get("validate")
+
 			// get the value of the field
 			value := reflect.ValueOf(v).Elem().FieldByName(f.Name)
-			// validate
-			if err := validate(value.String(), f.Tag.Get("validate")); err != nil {
-				return err
+
+			// validate the value
+			if vType == "email" {
+				if err := validateEmail(value.String(), vType); err != nil {
+					return fmt.Errorf("field %s is invalid: %s", f.Name, err)
+				}
+			} else if vType == "phone" {
+				if newValue, err := validatePhone(value.String()); err != nil {
+					return fmt.Errorf("field %s is invalid: %s", f.Name, err)
+				} else {
+					value.SetString(newValue)
+				}
+			} else {
+				return fmt.Errorf("field %s has invalid validation type", f.Name)
 			}
+
 		}
 
 	}
 	return nil
 }
 
-func validate(value string, validationType string) error {
+func validatePhone(value string) (string, error) {
+	// replace all the spaces with nothing.
+	// replace any alpha characters with nothing except x
+	// if the length is not 10 or greater, return an error
+
+	newValue := strings.ReplaceAll(value, " ", "")
+	newValue = strings.ReplaceAll(newValue, "(", "")
+	newValue = strings.ReplaceAll(newValue, ")", "")
+	newValue = strings.ReplaceAll(newValue, "-", "")
+	newValue = strings.Map(func(r rune) rune {
+		if r == 'x' || r == '+' || (r >= '0' && r <= '9') {
+			return r
+		}
+		return -1
+	}, newValue)
+
+	if len(newValue) < 10 {
+		return "", fmt.Errorf("invalid phone number")
+	}
+
+	return newValue, nil
+}
+
+func validateEmail(value string, validationType string) error {
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	switch validationType {
 	case "email":

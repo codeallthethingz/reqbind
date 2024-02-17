@@ -39,6 +39,50 @@ func TestUnmarshalURLParamsToStruct(t *testing.T) {
 	r.ServeHTTP(nil, req)
 }
 
+func TestUnknownValidationType(t *testing.T) {
+	k := &struct {
+		Value string `required:"true" validate:"aoeu"`
+	}{}
+
+	request, err := http.NewRequest("GET", "/?value=aoeu", nil)
+	require.NoError(t, err)
+	require.Error(t, UnmarshalQueryToStruct(request, k))
+}
+
+func TestPhone(t *testing.T) {
+	tests := []struct {
+		value      string
+		expected   string
+		shouldPass bool
+	}{
+		{value: "aoeu", shouldPass: false},
+		{value: "'1234567890'", expected: "1234567890", shouldPass: true},
+		{value: "123-456-7890", expected: "1234567890", shouldPass: true},
+		{value: "123.456.7890", expected: "1234567890", shouldPass: true},
+		{value: "(123) 456-7890", expected: "1234567890", shouldPass: true},
+		{value: "123 456 7890", expected: "1234567890", shouldPass: true},
+		{value: "123-456-7890 x1234", expected: "1234567890x1234", shouldPass: true},
+		{value: "123-456-7890 ext1234", expected: "1234567890x1234", shouldPass: true},
+		{value: "123-456-7890 x 1234", expected: "1234567890x1234", shouldPass: true},
+		{value: "123-456-7890 ext 1234", expected: "1234567890x1234", shouldPass: true},
+		{value: "+1 123-456-7890", expected: "+11234567890", shouldPass: true},
+	}
+
+	for _, test := range tests {
+		t.Run("", func(t *testing.T) {
+			k := &struct {
+				Value string `required:"true" validate:"phone"`
+			}{}
+
+			runReqTests(t, k, test.value, !test.shouldPass, true)
+			if !test.shouldPass {
+				return
+			}
+			require.Equal(t, test.expected, k.Value, fmt.Sprintf("Phone: %s", test.value))
+		})
+	}
+}
+
 func TestEscape(t *testing.T) {
 	k := &struct {
 		Value string `required:"true"`
