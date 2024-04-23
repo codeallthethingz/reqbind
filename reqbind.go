@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dyninc/qstring"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -59,13 +58,18 @@ func UnmarshalURLParamsToStruct(r *http.Request, v interface{}) error {
 	if rctx == nil {
 		return fmt.Errorf("no route context")
 	}
-	queryMapLowercase := make(map[string][]string)
+	queryMap := make(map[string]string)
 
 	for i, key := range rctx.URLParams.Keys {
-		queryMapLowercase[strings.ToLower(key)] = []string{rctx.URLParams.Values[i]}
+		queryMap[key] = rctx.URLParams.Values[i]
 	}
 
-	if err := qstring.Unmarshal(queryMapLowercase, v); err != nil {
+	j, err := json.Marshal(queryMap)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(j, v); err != nil {
 		return err
 	}
 
