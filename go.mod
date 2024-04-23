@@ -1,4 +1,4 @@
-module github.com/codeallthethingz/chi-object-binding
+module github.com/codeallthethingz/reqbind
 
 go 1.20
 
