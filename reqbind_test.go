@@ -12,6 +12,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNestedStruct(t *testing.T) {
+	b := &struct {
+		Value struct {
+			InnerValue string `required:"true"`
+		}
+	}{}
+
+	request, err := http.NewRequest("GET", "/", io.NopCloser(bytes.NewReader([]byte(`{"value":{"innerValue":"aoeu"}}`))))
+	require.NoError(t, err)
+	require.NoError(t, UnmarshalBody(request, b))
+	require.Equal(t, "aoeu", b.Value.InnerValue)
+
+	b = &struct {
+		Value struct {
+			InnerValue string `required:"true"`
+		}
+	}{}
+	request, err = http.NewRequest("GET", "/", io.NopCloser(bytes.NewReader([]byte(`{"value":{}}`))))
+	require.NoError(t, err)
+	require.Error(t, UnmarshalBody(request, b))
+
+	b2 := &struct {
+		Value *struct {
+			InnerValue *string
+		}
+	}{}
+	request, err = http.NewRequest("GET", "/", io.NopCloser(bytes.NewReader([]byte(`{}`))))
+	require.NoError(t, err)
+	require.NoError(t, UnmarshalBody(request, b2))
+}
+
 func TestBadBody(t *testing.T) {
 	k := &struct {
 		Value string `required:"true"`
@@ -19,7 +50,7 @@ func TestBadBody(t *testing.T) {
 	badBody := io.NopCloser(bytes.NewReader([]byte("aoeu")))
 	request, err := http.NewRequest("GET", "/", badBody)
 	require.NoError(t, err)
-	require.Error(t, UnmarshalBodyToStruct(request, k))
+	require.Error(t, UnmarshalBody(request, k))
 }
 
 func TestUnmarshalURLParamsToStruct(t *testing.T) {
@@ -30,11 +61,11 @@ func TestUnmarshalURLParamsToStruct(t *testing.T) {
 	// create chi request
 	r := chi.NewRouter()
 	r.Get("/{value}", func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, UnmarshalURLParamsToStruct(r, k))
+		require.NoError(t, UnmarshalURLParams(r, k))
 		require.Equal(t, "aoeu", k.Value)
 	})
 	req, err := http.NewRequest("GET", "/AOEU", nil)
-	require.Error(t, UnmarshalURLParamsToStruct(req, k), "should fail because of required chi context")
+	require.Error(t, UnmarshalURLParams(req, k), "should fail because of required chi context")
 	require.NoError(t, err)
 	r.ServeHTTP(nil, req)
 }
@@ -46,7 +77,7 @@ func TestUnknownValidationType(t *testing.T) {
 
 	request, err := http.NewRequest("GET", "/?value=aoeu", nil)
 	require.NoError(t, err)
-	require.Error(t, UnmarshalQueryToStruct(request, k))
+	require.Error(t, UnmarshalQuery(request, k))
 }
 
 func TestPhone(t *testing.T) {
@@ -90,7 +121,7 @@ func TestEscape(t *testing.T) {
 
 	request, err := http.NewRequest("GET", "/?value=a+b", nil)
 	require.NoError(t, err)
-	require.NoError(t, UnmarshalQueryToStruct(request, k))
+	require.NoError(t, UnmarshalQuery(request, k))
 	require.Equal(t, "a b", k.Value)
 }
 
@@ -101,10 +132,10 @@ func TestNils(t *testing.T) {
 
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
-	if err := UnmarshalQueryToStruct(request, k); err != nil {
+	if err := UnmarshalQuery(request, k); err != nil {
 		require.NoError(t, err)
 	}
-	if err := UnmarshalBodyToStruct(request, k); err != nil {
+	if err := UnmarshalBody(request, k); err != nil {
 		require.NoError(t, err)
 	}
 }
@@ -123,7 +154,7 @@ func TestInt(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			testInt(t, test.value, 0, !test.shoudlPass)
+			testInt(t, test.value, !test.shoudlPass)
 		})
 	}
 }
@@ -214,15 +245,15 @@ func testFloat(t *testing.T, testValue string, requiresError bool) {
 
 func runReqTests(t *testing.T, k interface{}, testValue interface{}, requiresError bool, useQuotes bool) {
 	if requiresError {
-		require.Error(t, UnmarshalQueryToStruct(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("QueryToStruct: %s", testValue))
-		require.Error(t, UnmarshalBodyToStruct(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("BodyToStruct: %s", testValue))
+		require.Error(t, UnmarshalQuery(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("QueryToStruct: %s", testValue))
+		require.Error(t, UnmarshalBody(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("BodyToStruct: %s", testValue))
 	} else {
-		require.NoError(t, UnmarshalQueryToStruct(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("QueryToStruct: %s", testValue))
-		require.NoError(t, UnmarshalBodyToStruct(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("BodyToStruct: %s", testValue))
+		require.NoError(t, UnmarshalQuery(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("QueryToStruct: %s", testValue))
+		require.NoError(t, UnmarshalBody(mustRequest(t, testValue, useQuotes), k), fmt.Sprintf("BodyToStruct: %s", testValue))
 	}
 }
 
-func testInt(t *testing.T, testValue string, equals int, requiresError bool) {
+func testInt(t *testing.T, testValue string, requiresError bool) {
 	k := &struct {
 		Value *int `required:"true"`
 	}{}

@@ -14,9 +14,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// UnmarshalBodyToStruct is a custom unmarshaler that will check for required fields
+// UnmarshalBody is a custom unmarshaler that will check for required fields
 // and throw an error if the field is missing
-func UnmarshalBodyToStruct(r *http.Request, v interface{}) error {
+func UnmarshalBody(r *http.Request, v interface{}) error {
 	bodyBytes, err := getBodyBytes(r)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func UnmarshalBodyToStruct(r *http.Request, v interface{}) error {
 	return checkMetadata(v)
 }
 
-func UnmarshalQueryToStruct(r *http.Request, v interface{}) error {
+func UnmarshalQuery(r *http.Request, v interface{}) error {
 	qMap := make(map[string]interface{})
 	for k, value := range r.URL.Query() {
 		if len(value) == 0 || value[0] == "" {
@@ -53,7 +53,7 @@ func UnmarshalQueryToStruct(r *http.Request, v interface{}) error {
 	return checkMetadata(v)
 }
 
-func UnmarshalURLParamsToStruct(r *http.Request, v interface{}) error {
+func UnmarshalURLParams(r *http.Request, v interface{}) error {
 	rctx := chi.RouteContext(r.Context())
 	if rctx == nil {
 		return fmt.Errorf("no route context")
@@ -112,12 +112,23 @@ func checkMetadata(v interface{}) error {
 	// iterate through the fields and check for required
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
+
 		// if the field is required, check for the zero value
 		if f.Tag.Get("required") == "true" {
+			reflectValue := reflect.ValueOf(v).Elem()
+			// deal with : <invalid reflect.Value>
+			if reflectValue.Kind() == reflect.Invalid {
+				return fmt.Errorf("field %s is required", f.Name)
+			}
+
 			// get the value of the field
 			value := reflect.ValueOf(v).Elem().FieldByName(f.Name)
 			// if the value is the zero value and not a boolean
 			if value.IsZero() && f.Type.Kind() != reflect.Bool {
+				return fmt.Errorf("field %s is required", f.Name)
+			}
+			// if it's a pointer and nil then throw an error
+			if f.Type.Kind() == reflect.Ptr && value.IsNil() {
 				return fmt.Errorf("field %s is required", f.Name)
 			}
 		}
@@ -168,6 +179,20 @@ func checkMetadata(v interface{}) error {
 				return fmt.Errorf("field %s has invalid validation type", f.Name)
 			}
 
+		}
+
+		// if this is a nested pointer to a struct, then call checkMetadata on the nested struct
+		if f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct {
+			if err := checkMetadata(reflect.ValueOf(v).Elem().FieldByName(f.Name).Interface()); err != nil {
+				return err
+			}
+		}
+
+		// if it's a nested struct then call checkMetadata on the nested struct,
+		if f.Type.Kind() == reflect.Struct {
+			if err := checkMetadata(reflect.ValueOf(v).Elem().FieldByName(f.Name).Addr().Interface()); err != nil {
+				return err
+			}
 		}
 
 	}
