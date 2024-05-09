@@ -8,6 +8,8 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+#  add read and write permisions
+permissions:
 
 jobs:
   build:
@@ -28,8 +30,9 @@ jobs:
 
       - name: Update coverage report
         uses: ncruces/go-coverage-report@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           report: true
           chart: true
           amend: true
-        continue-on-error: true
