@@ -22,7 +22,7 @@ func UnmarshalBody(r *http.Request, v interface{}) error {
 		return err
 	}
 
-	if bodyBytes == nil {
+	if len(bodyBytes) == 0 {
 		return nil
 	}
 

@@ -1,6 +1,6 @@
 # reqbind
 
-[![Go Coverage](https://github.com/codeallthethingz/reqbind/wiki/coverage.svg)](https://raw.githack.com/wiki/codeallthethingz/reqbind/coverage.html)
+![Go Coverage](https://github.com/codeallthethingz/reqbind/wiki/coverage.svg)
 
 A small library to bind query string, path parameters, and request body to a struct with validation metadata.
 
