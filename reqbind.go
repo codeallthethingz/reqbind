@@ -133,18 +133,30 @@ func checkMetadata(v interface{}) error {
 			}
 		}
 
-		// if the field has a max-length, check the length
-		if f.Tag.Get("max-length") != "" {
+		// if the field has a truncate, check the length
+		if f.Tag.Get("truncate") != "" {
 			// get the value of the field
 			value := reflect.ValueOf(v).Elem().FieldByName(f.Name)
-			// conver the tag max-length to an int
-			if maxLengthInt, err := strconv.Atoi(f.Tag.Get("max-length")); err != nil {
-				return fmt.Errorf("field %s has invalid max-length", f.Name)
+			// conver the tag truncate to an int
+			if maxLengthInt, err := strconv.Atoi(f.Tag.Get("truncate")); err != nil {
+				return fmt.Errorf("field %s has invalid truncate", f.Name)
 			} else {
-				// if the value is the zero value, then throw an error
 				if len(value.String()) > maxLengthInt {
 					// truncate
 					value.SetString(value.String()[0:maxLengthInt])
+				}
+			}
+		}
+
+		// if the field has a truncate, check the length
+		if f.Tag.Get("max-length") != "" {
+			// get the value of the field
+			value := reflect.ValueOf(v).Elem().FieldByName(f.Name)
+			if maxLengthInt, err := strconv.Atoi(f.Tag.Get("max-length")); err != nil {
+				return fmt.Errorf("field %s has invalid max-length", f.Name)
+			} else {
+				if len(value.String()) > maxLengthInt {
+					return fmt.Errorf("field %s is too long", f.Name)
 				}
 			}
 		}

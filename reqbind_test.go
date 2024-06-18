@@ -212,13 +212,21 @@ func TestFloat(t *testing.T) {
 
 func testEmail(t *testing.T, testValue string, expectedValue string, requiresError bool) {
 	k := &struct {
-		Value string `required:"true" validate:"email" trimlower:"true" max-length:"15"`
+		Value string `required:"true" validate:"email" trimlower:"true" truncate:"15"`
 	}{}
 
 	runReqTests(t, k, testValue, requiresError, true)
 	if !requiresError {
 		require.Equal(t, expectedValue, k.Value, fmt.Sprintf("Email: %s", testValue))
 	}
+}
+
+func TestMaxLength(t *testing.T) {
+	k := &struct {
+		Value string `required:"true" max-length:"5"`
+	}{}
+
+	runReqTests(t, k, "aoeu-aoeu", true, false)
 }
 
 func mustRequest(t *testing.T, value interface{}, useQuotes bool) *http.Request {

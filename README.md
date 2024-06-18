@@ -51,7 +51,7 @@ if err := reqbind.UnmarshalQuery(r, q); err != nil {
 ```go
 u := &struct {
     Email       string `required:"true" validate:"email" trimlower:"true"`
-    Description string `max-length:"1000"`
+    Description string `truncate:"1000"`
     Phone       string `required:"true" validate:"phone"`
 }{}
 ```
